@@ -1,0 +1,77 @@
+#imstall rpaframework into environemnt
+
+import os
+import pandas as pd
+from time import sleep
+from RPA.Browser.Selenium import Selenium
+
+OUTPUT_DIR = "data"
+
+if not os.path.exists(OUTPUT_DIR):
+    os.mkdir(OUTPUT_DIR)
+
+b = Selenium()
+b.set_download_directory(os.path.join(os.getcwd(), f"{OUTPUT_DIR}"))
+
+url = 'https://inecnigeria.org/elections/polling-units/'
+b.open_available_browser(url)
+
+b.wait_until_page_contains_element('xpath://*[@id="main"]/div/div[2]/div[1]/div[1]/span')
+
+
+# select the state
+len_state = b.get_list_items('css:#statePoll')
+for i in range(3, len(len_state)+1):
+
+    polling_unit = {'state': [], 'lga': [], 'ward': [], 'polling_unit_ID': [], 'polling_unit_name': [], 'remark': []}
+    
+    try:
+        b.find_element('css:#statePoll').click()
+        b.find_element(f'//*[@id="statePoll"]/option[{i}]').click()
+        state = b.get_text(f'//*[@id="statePoll"]/option[{i}]')
+        print(f'Extracting data for {state} state')
+        sleep(1)
+
+        # select the local government
+        len_lga = b.get_list_items('css:#lgaPoll')
+        for j in range(2, len(len_lga)+1):
+            b.find_element('css:#lgaPoll').click()
+            b.find_element(f'//*[@id="lgaPoll"]/option[{j}]').click()
+            lga = b.get_text(f'//*[@id="lgaPoll"]/option[{j}]')
+            print(f'Extracting data for {lga} lga')
+            sleep(1)
+            
+            # Select the ward
+            len_ward = b.get_list_items('css:#wardPoll')
+            for k in range(2, len(len_ward)+1):
+                b.find_element('css:#wardPoll').click()
+                b.find_element(f'//*[@id="wardPoll"]/option[{k}]').click()
+                ward = b.get_text(f'//*[@id="wardPoll"]/option[{k}]')
+                sleep(3)
+
+                # Click the search button
+                b.find_element('css:#SearchPoll').click()
+                sleep(2)
+                
+                table = b.find_element('xpath://*[@id="result"]/tbody').find_elements_by_tag_name('tr')
+                for l in range(1, len(table)+1):
+                    polling_unit['state'].append(state)
+                    polling_unit['lga'].append(lga)
+                    polling_unit['ward'].append(ward)
+
+                    polling_unit_ID = b.find_element(f'//*[@id="result"]/tbody/tr[{l}]/td[1]').text
+                    polling_unit['polling_unit_ID'].append(polling_unit_ID)
+
+                    polling_unit_name = b.find_element(f'//*[@id="result"]/tbody/tr[{l}]/td[2]').text
+                    polling_unit['polling_unit_name'].append(polling_unit_name)
+
+                    remark = b.find_element(f'//*[@id="result"]/tbody/tr[{l}]/td[3]').text
+                    polling_unit['remark'].append(remark)
+    except Exception as error:
+        print(error)
+        continue
+
+    finally:
+        polling_units = pd.DataFrame({ key:pd.Series(value) for key, value in polling_unit.items() })
+        polling_units.to_csv(f'./data/{state}.csv', index=False)
+        print(f'Successfully saved {state} state\n')
