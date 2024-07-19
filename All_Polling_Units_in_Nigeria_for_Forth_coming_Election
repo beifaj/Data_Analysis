@@ -1,4 +1,4 @@
-#imstall rpaframework into environemnt
+#install rpaframework into environemnt
 
 import os
 import pandas as pd
